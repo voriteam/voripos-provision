@@ -30,6 +30,7 @@ if (( statusCode > 299 )); then
     exit 1
 fi
 
+environment=$( jq -r  '.environment | select( . != null )' <<< "${content}" )
 bannerID=$( jq -r  '.banner.id | select( . != null )' <<< "${content}" )
 bannerName=$( jq -r  '.banner.name | select( . != null )' <<< "${content}" )
 storeID=$( jq -r  '.store.id | select( . != null )' <<< "${content}" )
@@ -38,6 +39,7 @@ laneID=$( jq -r  '.lane.id | select( . != null )' <<< "${content}" )
 laneName=$( jq -r  '.lane.name | select( . != null )' <<< "${content}" )
 
 echo -e $Green"Successfully validated token."$Normal
+printf "%15s %s\n" "Environment" "$environment"
 printf "%15s %s\n" "Banner ID" "$bannerID"
 printf "%15s %s\n" "Banner Name" "$bannerName"
 printf "%15s %s\n" "Store ID" "$storeID"
@@ -46,7 +48,7 @@ printf "%15s %s\n" "Lane ID" "$laneID"
 printf "%15s %b\n" "Lane Name" "${laneName:-$Yellow$Italic(Not set)$Normal}"
 
 # The user must explicitly agree to continue provisioning
-read -p "$(echo -e $Yellow"Do you want to provision this machine with the above details? This will store credentials on this machine. The token will be consumed and no longer be usable. Type 'yes' if you want to provision. "$Normal)" reply
+read -p "$(echo -e $Yellow"Do you want to provision this machine with the above details? This will store credentials on this machine. The token will be consumed and no longer be usable. Type 'yes' if you want to provision: "$Normal)" reply
 
 if [ $reply != "yes" ]; then
     echo "Provisioning cancelled."
@@ -60,15 +62,17 @@ response=$(curl --silent -w "\n%{http_code}" -L -X POST $VORI_API_ROOT"/lane-pro
 statusCode=$(tail -n1 <<< "$response")  # Get the status code from the last line
 content=$(sed '$ d' <<< "$response")   # Get everything except the last line (which contains the status code)
 
+environment=$( jq -r  '.metadata.environment | select( . != null )' <<< "${content}" )
 bannerID=$( jq -r  '.metadata.banner.id | select( . != null )' <<< "${content}" )
 bannerName=$( jq -r  '.metadata.banner.name | select( . != null )' <<< "${content}" )
 storeID=$( jq -r  '.metadata.store.id | select( . != null )' <<< "${content}" )
 storeName=$( jq -r  '.metadata.store.name | select( . != null )' <<< "${content}" )
 laneID=$( jq -r  '.metadata.lane.id | select( . != null )' <<< "${content}" )
 laneName=$( jq -r  '.metadata.lane.name | select( . != null )' <<< "${content}" )
-litefsCloudToken=$( jq -r  '.litefsCloudToken | select( . != null )' <<< "${content}" )
-txnDbBucket=$( jq -r  '.transactionBucket | select( . != null )' <<< "${content}" )
-transactionKey=$( jq -r  '.transactionKey | select( . != null )' <<< "${content}" )
+datacapMerchantID=$( jq -r  '.datacap_merchant_id | select( . != null )' <<< "${content}" )
+litefsCloudToken=$( jq -r  '.litefs_cloud_token | select( . != null )' <<< "${content}" )
+txnDbBucket=$( jq -r  '.transaction_bucket | select( . != null )' <<< "${content}" )
+transactionKey=$( jq -r  '.transaction_key | select( . != null )' <<< "${content}" )
 otlpHostname=$( jq -r  '.otlp.hostname | select( . != null )' <<< "${content}" )
 otlpPort=$( jq -r  '.otlp.port | select( . != null )' <<< "${content}" )
 otlpUsername=$( jq -r  '.otlp.auth.basic.username | select( . != null )' <<< "${content}" )
@@ -80,12 +84,16 @@ txnKeyPath="$HOME/voripos/gcp.json"
 echo "$transactionKey" | base64 --decode > "$txnKeyPath"
 
 # Metadata
+defaults write com.vori.VoriPOS provisioned_environment -string "$environment"
 defaults write com.vori.VoriPOS provisioned_bannerID -string "$bannerID"
 defaults write com.vori.VoriPOS provisioned_bannerName -string "$bannerName"
 defaults write com.vori.VoriPOS provisioned_storeID -string "$storeID"
 defaults write com.vori.VoriPOS provisioned_storeName -string "$storeName"
 defaults write com.vori.VoriPOS provisioned_laneID -string "$laneID"
 defaults write com.vori.VoriPOS provisioned_laneName -string "$laneName"
+
+# Payments
+defaults write com.vori.VoriPOS provisioned_datacapMerchantID -string "$datacapMerchantID"
 
 # Data sync
 defaults write com.vori.VoriPOS provisioned_litefsCloudToken -string "$litefsCloudToken"
