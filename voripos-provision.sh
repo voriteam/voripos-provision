@@ -4,6 +4,7 @@ set -e
 set +v
 set +x
 
+VORIPOS_PROVISION_VERSION=0.2.1
 VORI_API_ROOT="${VORI_API_ROOT:-https://api.vori.com/v1}"
 
 Normal=$(tput sgr0)
@@ -18,7 +19,7 @@ read -p "$(echo -e $Yellow"Please input the provisioning token: "$Normal)" provi
 
 # Check if token is valid
 echo "Validating token..."
-response=$(curl --silent -w "\n%{http_code}" -L -X POST $VORI_API_ROOT"/lane-provisioning-tokens/metadata" -H "Content-Type: application/json" -d '{"token": "'$provisioningToken'"}')
+response=$(curl --silent -w "\n%{http_code}" -L -X POST $VORI_API_ROOT"/lane-provisioning-tokens/metadata" -H "Content-Type: application/json" -H "X-Vori-Voripos-Provision-Version: $VORIPOS_PROVISION_VERSION" -d '{"token": "'$provisioningToken'"}')
 
 # Parse the response
 statusCode=$(tail -n1 <<< "$response")  # Get the status code from the last line
@@ -56,7 +57,7 @@ if [ $reply != "yes" ]; then
 fi
 
 echo "Retrieving credentials from Vori..."
-response=$(curl --silent -w "\n%{http_code}" -L -X POST $VORI_API_ROOT"/lane-provisioning-tokens/exchange" -H "Content-Type: application/json" -d '{"token": "'$provisioningToken'"}')
+response=$(curl --silent -w "\n%{http_code}" -L -X POST $VORI_API_ROOT"/lane-provisioning-tokens/exchange" -H "Content-Type: application/json" -H "X-Vori-Voripos-Provision-Version: $VORIPOS_PROVISION_VERSION" -d '{"token": "'$provisioningToken'"}')
 
 # Parse the response
 statusCode=$(tail -n1 <<< "$response")  # Get the status code from the last line
