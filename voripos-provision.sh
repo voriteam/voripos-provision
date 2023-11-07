@@ -4,7 +4,7 @@ set -e
 set +v
 set +x
 
-VORIPOS_PROVISION_VERSION=0.2.1
+VORIPOS_PROVISION_VERSION=0.3.0
 VORI_API_ROOT="${VORI_API_ROOT:-https://api.vori.com/v1}"
 
 Normal=$(tput sgr0)
@@ -71,6 +71,7 @@ storeName=$( jq -r  '.metadata.store.name | select( . != null )' <<< "${content}
 laneID=$( jq -r  '.metadata.lane.id | select( . != null )' <<< "${content}" )
 laneName=$( jq -r  '.metadata.lane.name | select( . != null )' <<< "${content}" )
 datacapMerchantID=$( jq -r  '.datacap_merchant_id | select( . != null )' <<< "${content}" )
+orderIdPrefix=$( jq -r  '.order_id_prefix | select( . != null )' <<< "${content}" )
 litefsCloudToken=$( jq -r  '.litefs_cloud_token | select( . != null )' <<< "${content}" )
 txnDbBucket=$( jq -r  '.transaction_bucket | select( . != null )' <<< "${content}" )
 transactionKey=$( jq -r  '.transaction_key | select( . != null )' <<< "${content}" )
@@ -95,6 +96,9 @@ defaults write com.vori.VoriPOS provisioned_laneName -string "$laneName"
 
 # Payments
 defaults write com.vori.VoriPOS provisioned_datacapMerchantID -string "$datacapMerchantID"
+
+# Receipts
+defaults write com.vori.VoriPOS provisioned_orderPrefix -string "$orderIdPrefix"
 
 # Data sync
 defaults write com.vori.VoriPOS provisioned_litefsCloudToken -string "$litefsCloudToken"
