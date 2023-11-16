@@ -75,6 +75,9 @@ orderIdPrefix=$( jq -r  '.order_id_prefix | select( . != null )' <<< "${content}
 litefsCloudToken=$( jq -r  '.litefs_cloud_token | select( . != null )' <<< "${content}" )
 txnDbBucket=$( jq -r  '.transaction_bucket | select( . != null )' <<< "${content}" )
 transactionKey=$( jq -r  '.transaction_key | select( . != null )' <<< "${content}" )
+oidcClientID=$( jq -r  '.oidc.client_id | select( . != null )' <<< "${content}" )
+oidcClientSecret=$( jq -r  '.oidc.client_secret | select( . != null )' <<< "${content}" )
+oidcTokenUrl=$( jq -r  '.oidc.token_url | select( . != null )' <<< "${content}" )
 otlpHostname=$( jq -r  '.otlp.hostname | select( . != null )' <<< "${content}" )
 otlpPort=$( jq -r  '.otlp.port | select( . != null )' <<< "${content}" )
 otlpUsername=$( jq -r  '.otlp.auth.basic.username | select( . != null )' <<< "${content}" )
@@ -93,6 +96,11 @@ defaults write com.vori.VoriPOS provisioned_storeID -string "$storeID"
 defaults write com.vori.VoriPOS provisioned_storeName -string "$storeName"
 defaults write com.vori.VoriPOS provisioned_laneID -string "$laneID"
 defaults write com.vori.VoriPOS provisioned_laneName -string "$laneName"
+
+# OIDC
+defaults write com.vori.VoriPOS provisioned_oidcClientID -string "$oidcClientID"
+defaults write com.vori.VoriPOS provisioned_oidcClientSecret -string "$oidcClientSecret"
+defaults write com.vori.VoriPOS provisioned_oidcTokenUrl -string "$oidcTokenUrl"
 
 # Payments
 defaults write com.vori.VoriPOS provisioned_datacapMerchantID -string "$datacapMerchantID"
