@@ -4,7 +4,7 @@ set -e
 set +v
 set +x
 
-VORIPOS_PROVISION_VERSION=0.6.0
+VORIPOS_PROVISION_VERSION=0.6.1
 VORI_API_ROOT="${VORI_API_ROOT:-https://api.vori.com/v1}"
 
 Normal=$(tput sgr0)
@@ -16,6 +16,7 @@ Yellow=$(tput setaf 3)
 reprovision=false
 silent=false
 provisioningToken=''
+accessToken=
 
 while getopts 'rst:' OPTION; do
   case "$OPTION" in
@@ -36,12 +37,12 @@ while getopts 'rst:' OPTION; do
 done
 
 # Ensure we can retrieve an access token if re-provisioning
-oidcClientID=$(defaults read com.vori.VoriPOS provisioned_oidcClientID)
-oidcClientSecret=$(defaults read com.vori.VoriPOS provisioned_oidcClientSecret)
-oidcTokenUrl=$(defaults read com.vori.VoriPOS provisioned_oidcTokenUrl)
-accessToken=
-
 if [ "$reprovision" = true ] ; then
+  # NOTE: Read attempts will halt execution if the keys do not exist.
+  oidcClientID=$(defaults read com.vori.VoriPOS provisioned_oidcClientID)
+  oidcClientSecret=$(defaults read com.vori.VoriPOS provisioned_oidcClientSecret)
+  oidcTokenUrl=$(defaults read com.vori.VoriPOS provisioned_oidcTokenUrl)
+
   response=$(curl --silent -w "\n%{http_code}" -L -X POST "$oidcTokenUrl" -u "$oidcClientID:$oidcClientSecret" -d "grant_type=client_credentials&scope=api" -H "X-Vori-Voripos-Provision-Version: $VORIPOS_PROVISION_VERSION")
   statusCode=$(tail -n1 <<< "$response")
   content=$(sed '$ d' <<< "$response")
