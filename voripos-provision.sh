@@ -4,7 +4,7 @@ set -e
 set +v
 set +x
 
-VORIPOS_PROVISION_VERSION=0.5.0
+VORIPOS_PROVISION_VERSION=0.6.0
 VORI_API_ROOT="${VORI_API_ROOT:-https://api.vori.com/v1}"
 
 Normal=$(tput sgr0)
@@ -13,13 +13,74 @@ Red=$(tput setaf 1)
 Green=$(tput setaf 2)
 Yellow=$(tput setaf 3)
 
-# Get provisioning token from the user
-# NOTE: We will make this visible for now (hence, no -s) to make training and debugging simpler.
-read -p "$(echo -e $Yellow"Please input the provisioning token: "$Normal)" provisioningToken
+reprovision=false
+silent=false
+provisioningToken=''
+
+while getopts 'rst:' OPTION; do
+  case "$OPTION" in
+    r)
+      reprovision=true
+      ;;
+    s)
+      silent=true
+      ;;
+    t)
+      provisioningToken="$OPTARG"
+      ;;
+    ?)
+      echo "Usage: $(basename "$0") [-r] [-s] [-t token]" >&2
+      exit 1
+      ;;
+  esac
+done
+
+# Ensure we can retrieve an access token if re-provisioning
+oidcClientID=$(defaults read com.vori.VoriPOS provisioned_oidcClientID)
+oidcClientSecret=$(defaults read com.vori.VoriPOS provisioned_oidcClientSecret)
+oidcTokenUrl=$(defaults read com.vori.VoriPOS provisioned_oidcTokenUrl)
+accessToken=
+
+if [ "$reprovision" = true ] ; then
+  response=$(curl --silent -w "\n%{http_code}" -L -X POST "$oidcTokenUrl" -u "$oidcClientID:$oidcClientSecret" -d "grant_type=client_credentials&scope=api" -H "X-Vori-Voripos-Provision-Version: $VORIPOS_PROVISION_VERSION")
+  statusCode=$(tail -n1 <<< "$response")
+  content=$(sed '$ d' <<< "$response")
+  accessToken=$( jq -r  '.access_token | select( . != null )' <<< "${content}" )
+
+  if [[ -z $accessToken ]]; then
+    echo "Failed to retrieve access token (status=$statusCode): $content"
+    exit 1
+  fi
+fi
+
+if [ "$silent" = true ] ; then
+  if [[ -z $provisioningToken && "$reprovision" != true ]]; then
+    echo 'Either set the re-provisioning flag, or set a provisioning token when using silent mode.'
+    exit 1;
+  fi
+fi
+
+
+if [[ -z $provisioningToken && "$reprovision" != true ]]; then
+  # Get provisioning token from the user
+  # NOTE: We will make this visible for now (hence, no -s) to make training and debugging simpler.
+  read -p "$(echo -e $Yellow"Please input the provisioning token: "$Normal)" provisioningToken
+else
+    echo 'Using token from command line...'
+fi
+
+# These allow us to switch the cURL command args, depending on whether we are using OAuth.
+declare -a curlArgs=()
+
+if [[ -z $accessToken ]]; then
+  curlArgs=('-d' "{\"token\": \"$provisioningToken\"}")
+else
+  curlArgs=('-H' "Authorization: Bearer $accessToken")
+fi
 
 # Check if token is valid
 echo "Validating token..."
-response=$(curl --silent -w "\n%{http_code}" -L -X POST $VORI_API_ROOT"/lane-provisioning-tokens/metadata" -H "Content-Type: application/json" -H "X-Vori-Voripos-Provision-Version: $VORIPOS_PROVISION_VERSION" -d '{"token": "'$provisioningToken'"}')
+response=$(curl --silent -w "\n%{http_code}" -L -X POST "$VORI_API_ROOT/lane-provisioning-tokens/metadata" -H "Content-Type: application/json" -H "X-Vori-Voripos-Provision-Version: $VORIPOS_PROVISION_VERSION" "${curlArgs[@]}")
 
 # Parse the response
 statusCode=$(tail -n1 <<< "$response")  # Get the status code from the last line
@@ -39,7 +100,7 @@ storeName=$( jq -r  '.store.name | select( . != null )' <<< "${content}" )
 laneID=$( jq -r  '.lane.id | select( . != null )' <<< "${content}" )
 laneName=$( jq -r  '.lane.name | select( . != null )' <<< "${content}" )
 
-echo -e $Green"Successfully validated token."$Normal
+echo -e "${Green}Successfully validated token.${Normal}"
 printf "%15s %s\n" "Environment" "$environment"
 printf "%15s %s\n" "Banner ID" "$bannerID"
 printf "%15s %s\n" "Banner Name" "$bannerName"
@@ -48,16 +109,18 @@ printf "%15s %s\n" "Store Name" "$storeName"
 printf "%15s %s\n" "Lane ID" "$laneID"
 printf "%15s %b\n" "Lane Name" "${laneName:-$Yellow$Italic(Not set)$Normal}"
 
-# The user must explicitly agree to continue provisioning
-read -p "$(echo -e $Yellow"Do you want to provision this machine with the above details? This will store credentials on this machine. The token will be consumed and no longer be usable. Type 'yes' if you want to provision: "$Normal)" reply
+if [ "$silent" != true ] ; then
+  # The user must explicitly agree to continue provisioning
+  read -p "$(echo -e $Yellow"Do you want to provision this machine with the above details? This will store credentials on this machine. The token will be consumed and no longer be usable. Type 'yes' if you want to provision: "$Normal)" reply
 
-if [ $reply != "yes" ]; then
-    echo "Provisioning cancelled."
-    exit 1
+  if [ $reply != "yes" ]; then
+      echo "Provisioning cancelled."
+      exit 1
+  fi
 fi
 
 echo "Retrieving credentials from Vori..."
-response=$(curl --silent -w "\n%{http_code}" -L -X POST $VORI_API_ROOT"/lane-provisioning-tokens/exchange" -H "Content-Type: application/json" -H "X-Vori-Voripos-Provision-Version: $VORIPOS_PROVISION_VERSION" -d '{"token": "'$provisioningToken'"}')
+response=$(curl --silent -w "\n%{http_code}" -L -X POST "$VORI_API_ROOT/lane-provisioning-tokens/exchange" -H "Content-Type: application/json" -H "X-Vori-Voripos-Provision-Version: $VORIPOS_PROVISION_VERSION" "${curlArgs[@]}")
 
 # Parse the response
 statusCode=$(tail -n1 <<< "$response")  # Get the status code from the last line
