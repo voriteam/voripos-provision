@@ -128,6 +128,7 @@ statusCode=$(tail -n1 <<< "$response")  # Get the status code from the last line
 content=$(sed '$ d' <<< "$response")   # Get everything except the last line (which contains the status code)
 
 environment=$( jq -r  '.metadata.environment | select( . != null )' <<< "${content}" )
+voriApiUrl=$( jq -r  '.vori_api_url | select( . != null )' <<< "${content}" )
 bannerID=$( jq -r  '.metadata.banner.id | select( . != null )' <<< "${content}" )
 bannerName=$( jq -r  '.metadata.banner.name | select( . != null )' <<< "${content}" )
 storeID=$( jq -r  '.metadata.store.id | select( . != null )' <<< "${content}" )
@@ -151,6 +152,8 @@ echo "Storing credentials..."
 mkdir -p "$HOME/voripos"
 txnKeyPath="$HOME/voripos/gcp.json"
 echo "$transactionKey" | base64 --decode > "$txnKeyPath"
+
+defaults write com.vori.VoriPOS provisioned_voriApiUrl -string "$voriApiUrl"
 
 # Metadata
 defaults write com.vori.VoriPOS provisioned_environment -string "$environment"
