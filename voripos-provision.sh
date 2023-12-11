@@ -4,7 +4,7 @@ set -e
 set +v
 set +x
 
-VORIPOS_PROVISION_VERSION=0.7.0
+VORIPOS_PROVISION_VERSION=0.8.0
 VORI_API_ROOT="${VORI_API_ROOT:-https://api.vori.com/v1}"
 
 Normal=$(tput sgr0)
@@ -140,6 +140,11 @@ orderIdPrefix=$( jq -r  '.order_id_prefix | select( . != null )' <<< "${content}
 litefsCloudToken=$( jq -r  '.litefs_cloud_token | select( . != null )' <<< "${content}" )
 txnDbBucket=$( jq -r  '.transaction_bucket | select( . != null )' <<< "${content}" )
 transactionKey=$( jq -r  '.transaction_key | select( . != null )' <<< "${content}" )
+litestreamType=$( jq -r  '.litestream_config.type | select( . != null )' <<< "${content}" )
+litestreamEndpoint=$( jq -r  '.litestream_config.endpoint | select( . != null )' <<< "${content}" )
+litestreamRegion=$( jq -r  '.litestream_config.region | select( . != null )' <<< "${content}" )
+litestreamBucket=$( jq -r  '.litestream_config.bucket | select( . != null )' <<< "${content}" )
+litestreamPath=$( jq -r  '.litestream_config.path | select( . != null )' <<< "${content}" )
 oidcClientID=$( jq -r  '.oidc.client_id | select( . != null )' <<< "${content}" )
 oidcClientSecret=$( jq -r  '.oidc.client_secret | select( . != null )' <<< "${content}" )
 oidcTokenUrl=$( jq -r  '.oidc.token_url | select( . != null )' <<< "${content}" )
@@ -185,6 +190,13 @@ defaults write com.vori.VoriPOS provisioned_otlpHostname -string "$otlpHostname"
 defaults write com.vori.VoriPOS provisioned_otlpPort -integer "$otlpPort"
 defaults write com.vori.VoriPOS provisioned_otlpUsername -string "$otlpUsername"
 defaults write com.vori.VoriPOS provisioned_otlpPassword -string "$otlpPassword"
+
+# Transaction sync
+defaults write com.vori.VoriPOS provisioned_litestreamType -string "$litestreamType"
+defaults write com.vori.VoriPOS provisioned_litestreamEndpoint -string "$litestreamEndpoint"
+defaults write com.vori.VoriPOS provisioned_litestreamRegion -string "$litestreamRegion"
+defaults write com.vori.VoriPOS provisioned_litestreamBucket -string "$litestreamBucket"
+defaults write com.vori.VoriPOS provisioned_litestreamPath -string "$litestreamPath"
 
 echo "Starting background services..."
 brew services restart voripos-otel-collector
