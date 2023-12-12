@@ -147,8 +147,6 @@ oidcClientSecret=$( jq -r  '.oidc.client_secret | select( . != null )' <<< "${co
 oidcTokenUrl=$( jq -r  '.oidc.token_url | select( . != null )' <<< "${content}" )
 otlpHostname=$( jq -r  '.otlp.hostname | select( . != null )' <<< "${content}" )
 otlpPort=$( jq -r  '.otlp.port | select( . != null )' <<< "${content}" )
-otlpUsername=$( jq -r  '.otlp.auth.basic.username | select( . != null )' <<< "${content}" )
-otlpPassword=$( jq -r  '.otlp.auth.basic.password | select( . != null )' <<< "${content}" )
 
 echo "Storing credentials..."
 
@@ -177,8 +175,6 @@ defaults write com.vori.VoriPOS provisioned_orderPrefix -string "$orderIdPrefix"
 # OpenTelemetry (OTLP)
 defaults write com.vori.VoriPOS provisioned_otlpHostname -string "$otlpHostname"
 defaults write com.vori.VoriPOS provisioned_otlpPort -integer "$otlpPort"
-defaults write com.vori.VoriPOS provisioned_otlpUsername -string "$otlpUsername"
-defaults write com.vori.VoriPOS provisioned_otlpPassword -string "$otlpPassword"
 
 # Transaction sync
 defaults write com.vori.VoriPOS provisioned_litestreamType -string "$litestreamType"
