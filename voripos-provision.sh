@@ -4,7 +4,7 @@ set -e
 set +v
 set +x
 
-VORIPOS_PROVISION_VERSION=0.8.0
+VORIPOS_PROVISION_VERSION=0.9.0
 VORI_API_ROOT="${VORI_API_ROOT:-https://api.vori.com/v1}"
 
 Normal=$(tput sgr0)
@@ -137,9 +137,6 @@ laneID=$( jq -r  '.metadata.lane.id | select( . != null )' <<< "${content}" )
 laneName=$( jq -r  '.metadata.lane.name | select( . != null )' <<< "${content}" )
 datacapMerchantID=$( jq -r  '.datacap_merchant_id | select( . != null )' <<< "${content}" )
 orderIdPrefix=$( jq -r  '.order_id_prefix | select( . != null )' <<< "${content}" )
-litefsCloudToken=$( jq -r  '.litefs_cloud_token | select( . != null )' <<< "${content}" )
-txnDbBucket=$( jq -r  '.transaction_bucket | select( . != null )' <<< "${content}" )
-transactionKey=$( jq -r  '.transaction_key | select( . != null )' <<< "${content}" )
 litestreamType=$( jq -r  '.litestream_config.type | select( . != null )' <<< "${content}" )
 litestreamEndpoint=$( jq -r  '.litestream_config.endpoint | select( . != null )' <<< "${content}" )
 litestreamRegion=$( jq -r  '.litestream_config.region | select( . != null )' <<< "${content}" )
@@ -150,13 +147,8 @@ oidcClientSecret=$( jq -r  '.oidc.client_secret | select( . != null )' <<< "${co
 oidcTokenUrl=$( jq -r  '.oidc.token_url | select( . != null )' <<< "${content}" )
 otlpHostname=$( jq -r  '.otlp.hostname | select( . != null )' <<< "${content}" )
 otlpPort=$( jq -r  '.otlp.port | select( . != null )' <<< "${content}" )
-otlpUsername=$( jq -r  '.otlp.auth.basic.username | select( . != null )' <<< "${content}" )
-otlpPassword=$( jq -r  '.otlp.auth.basic.password | select( . != null )' <<< "${content}" )
 
 echo "Storing credentials..."
-mkdir -p "$HOME/voripos"
-txnKeyPath="$HOME/voripos/gcp.json"
-echo "$transactionKey" | base64 --decode > "$txnKeyPath"
 
 defaults write com.vori.VoriPOS provisioned_voriApiUrl -string "$voriApiUrl"
 
@@ -180,16 +172,9 @@ defaults write com.vori.VoriPOS provisioned_datacapMerchantID -string "$datacapM
 # Receipts
 defaults write com.vori.VoriPOS provisioned_orderPrefix -string "$orderIdPrefix"
 
-# Data sync
-defaults write com.vori.VoriPOS provisioned_litefsCloudToken -string "$litefsCloudToken"
-defaults write com.vori.VoriPOS provisioned_txnDbBucket -string "$txnDbBucket"
-defaults write com.vori.VoriPOS provisioned_txnKeyPath -string "$txnKeyPath"
-
 # OpenTelemetry (OTLP)
 defaults write com.vori.VoriPOS provisioned_otlpHostname -string "$otlpHostname"
 defaults write com.vori.VoriPOS provisioned_otlpPort -integer "$otlpPort"
-defaults write com.vori.VoriPOS provisioned_otlpUsername -string "$otlpUsername"
-defaults write com.vori.VoriPOS provisioned_otlpPassword -string "$otlpPassword"
 
 # Transaction sync
 defaults write com.vori.VoriPOS provisioned_litestreamType -string "$litestreamType"
