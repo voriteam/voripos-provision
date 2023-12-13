@@ -4,7 +4,7 @@ set -e
 set +v
 set +x
 
-VORIPOS_PROVISION_VERSION=0.11.0
+VORIPOS_PROVISION_VERSION=0.11.1
 VORI_API_ROOT="${VORI_API_ROOT:-https://api.vori.com/v1}"
 DOMAIN_FILE_PATH="${HOME}/Library/Containers/com.vori.VoriPOS/Data/Library/Application Support/Domain"
 
@@ -195,11 +195,9 @@ defaults write com.vori.VoriPOS provisioned_litestreamPath -string "$litestreamP
 if [ $downloadDomainDb = true ] ; then
   if [[ -z $accessToken ]]; then
     echo "Retrieving access token..."
-    response=$(curl -X POST \
-      "$oidcTokenUrl" \
-      -H "Authorization: Basic $(echo -n "$oidcClientID:$oidcClientSecret" | base64)" \
-      -H "Content-Type: application/x-www-form-urlencoded" \
-      -d "grant_type=client_credentials&scope=api")
+    # TODO De-duplicate with call above for re-provisioning
+    response=$(curl --silent -w "\n%{http_code}" -L -X POST "$oidcTokenUrl" -u "$oidcClientID:$oidcClientSecret" -d "grant_type=client_credentials&scope=api" -H "X-Vori-Voripos-Provision-Version: $VORIPOS_PROVISION_VERSION")
+    statusCode=$(tail -n1 <<< "$response")
     content=$(sed '$ d' <<< "$response")
     accessToken=$( jq -r  '.access_token | select( . != null )' <<< "${content}" )
     curlArgs=('-H' "Authorization: Bearer $accessToken")
