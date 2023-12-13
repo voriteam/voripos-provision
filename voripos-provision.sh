@@ -4,7 +4,7 @@ set -e
 set +v
 set +x
 
-VORIPOS_PROVISION_VERSION=0.9.0
+VORIPOS_PROVISION_VERSION=0.10.0
 VORI_API_ROOT="${VORI_API_ROOT:-https://api.vori.com/v1}"
 
 Normal=$(tput sgr0)
@@ -185,7 +185,6 @@ defaults write com.vori.VoriPOS provisioned_litestreamPath -string "$litestreamP
 
 echo "Starting background services..."
 brew services restart voripos-otel-collector
-brew services restart voripos-domain-sync
 brew services restart voripos-txn-sync
 echo
 echo "Sync services started. You may need to wait up to five minutes for the initial domain data sync if this is a new installation. See the LiteFS container logs in Docker Desktop for status."
