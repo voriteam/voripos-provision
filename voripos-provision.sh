@@ -213,14 +213,32 @@ if [ $downloadDomainDb = true ] ; then
   # Parse the response
   content=$(sed '$ d' <<< "$response")
   downloadUrl=$( jq -r  '.download_url | select( . != null )' <<< "${content}" )
+  expectedHash=$( jq -r  '.checksum.value | select( . != null )' <<< "${content}" )
+  expectedAlgorithm=$( jq -r  '.checksum.algorithm | select( . != null )' <<< "${content}" )
 
   # Create folder and parent directories if does not exist
   mkdir -p "$DOMAIN_FILE_PATH"
 
   # Download domain database to application support
-  dbPath="$DOMAIN_FILE_PATH/$(date +%s)-Domain.sqlite3"
+  fileTimestamp=$(date +%s)
+  dbPath="${DOMAIN_FILE_PATH}/${fileTimestamp}-Domain.sqlite3"
   curl --silent -o "$dbPath" "$downloadUrl"
-  echo -e "${Green}Successfully downloaded domain database to: $dbPath${Normal}"
+
+  actualAlgorithm="sha512"
+  actualHash=$(sha512sum "$dbPath" | cut -d " " -f 1)
+
+  if [[ "$expectedHash" == "$actualHash" ]]; then
+    echo "Hashes match!"
+    echo -e "${Green}Successfully downloaded domain database to: $dbPath${Normal}"
+  else
+    failPath="${DOMAIN_FILE_PATH}/${fileTimestamp}-BAD-HASH-Domain.sqlite3"
+    mv "$dbPath" "$failPath"
+    echo "${Red}Hashes differ! The downloaded domain database is not valid!${Normal}"
+    echo "${Red}Expected: ${expectedAlgorithm}:${expectedHash}${Normal}"
+    echo "${Red}Actual:   ${actualAlgorithm}:${actualHash}${Normal}"
+    echo "${Red}Database has been moved to: ${failPath}${Normal}"
+    exit 1
+  fi
 fi
 
 echo "Starting background services..."
