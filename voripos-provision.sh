@@ -6,6 +6,7 @@ set +x
 
 VORIPOS_PROVISION_VERSION=0.10.0
 VORI_API_ROOT="${VORI_API_ROOT:-https://api.vori.com/v1}"
+DOMAIN_FILE_PATH="~/Library/Containers/com.vori.VoriPOS/Data/Library/Application Support/domain"
 
 Normal=$(tput sgr0)
 Italic=$(tput sitm)
@@ -182,6 +183,22 @@ defaults write com.vori.VoriPOS provisioned_litestreamEndpoint -string "$litestr
 defaults write com.vori.VoriPOS provisioned_litestreamRegion -string "$litestreamRegion"
 defaults write com.vori.VoriPOS provisioned_litestreamBucket -string "$litestreamBucket"
 defaults write com.vori.VoriPOS provisioned_litestreamPath -string "$litestreamPath"
+
+# Initial domain database download when not reprovisioning
+if [ "$reprovision" = false ] ; then
+  echo "Downloading initial domain database..."
+  response=$(curl --silent -w "\n%{http_code}" -L -X GET "$VORI_API_ROOT/pos/domain-data" -H "Content-Type: application/json" -H "X-Vori-Voripos-Provision-Version: $VORIPOS_PROVISION_VERSION" "${curlArgs[@]}")
+
+  # Parse the response
+  content=$(sed '$ d' <<< "$response")
+  downloadUrl=$( jq -r  '.download_url | select( . != null )' <<< "${content}" )
+
+  # Create folder and parent directories if does not exist
+  mkdir -p $DOMAIN_FILE_PATH
+
+  # Download domain database to application support
+  curl -o $DOMAIN_FILE_PATH/1-Domain.sqlite3 $downloadUrl
+fi
 
 echo "Starting background services..."
 brew services restart voripos-otel-collector
