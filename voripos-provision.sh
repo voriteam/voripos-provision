@@ -4,9 +4,9 @@ set -e
 set +v
 set +x
 
-VORIPOS_PROVISION_VERSION=0.10.0
+VORIPOS_PROVISION_VERSION=0.11.0
 VORI_API_ROOT="${VORI_API_ROOT:-https://api.vori.com/v1}"
-DOMAIN_FILE_PATH="~/Library/Containers/com.vori.VoriPOS/Data/Library/Application Support/domain"
+DOMAIN_FILE_PATH="${HOME}/Library/Containers/com.vori.VoriPOS/Data/Library/Application Support/Domain"
 
 Normal=$(tput sgr0)
 Italic=$(tput sitm)
@@ -14,13 +14,17 @@ Red=$(tput setaf 1)
 Green=$(tput setaf 2)
 Yellow=$(tput setaf 3)
 
+downloadDomainDb=false
 reprovision=false
 silent=false
 provisioningToken=''
 accessToken=
 
-while getopts 'rst:' OPTION; do
+while getopts 'drst:' OPTION; do
   case "$OPTION" in
+    d)
+      downloadDomainDb=true
+      ;;
     r)
       reprovision=true
       ;;
@@ -31,7 +35,7 @@ while getopts 'rst:' OPTION; do
       provisioningToken="$OPTARG"
       ;;
     ?)
-      echo "Usage: $(basename "$0") [-r] [-s] [-t token]" >&2
+      echo "Usage: $(basename "$0") [-d] [-r] [-s] [-t token]" >&2
       exit 1
       ;;
   esac
@@ -53,6 +57,9 @@ if [ "$reprovision" = true ] ; then
     echo "Failed to retrieve access token (status=$statusCode): $content"
     exit 1
   fi
+else
+  # Always download the domain database on initial provision
+  downloadDomainDb=true
 fi
 
 if [ "$silent" = true ] ; then
@@ -66,7 +73,7 @@ fi
 if [[ -z $provisioningToken && "$reprovision" != true ]]; then
   # Get provisioning token from the user
   # NOTE: We will make this visible for now (hence, no -s) to make training and debugging simpler.
-  read -p "$(echo -e $Yellow"Please input the provisioning token: "$Normal)" provisioningToken
+  read -r -p "$(echo -e "${Yellow}Please input the provisioning token: ${Normal}")" provisioningToken
 else
     echo 'Using token from command line...'
 fi
@@ -89,8 +96,8 @@ statusCode=$(tail -n1 <<< "$response")  # Get the status code from the last line
 content=$(sed '$ d' <<< "$response")   # Get everything except the last line (which contains the status code)
 
 if (( statusCode > 299 )); then
-    echo -e $Red"Token validation failed!"
-    echo -e $content$Normal
+    echo -e "${Red}Token validation failed!"
+    echo -e "${content}${Normal}"
     exit 1
 fi
 
@@ -113,9 +120,9 @@ printf "%15s %b\n" "Lane Name" "${laneName:-$Yellow$Italic(Not set)$Normal}"
 
 if [ "$silent" != true ] ; then
   # The user must explicitly agree to continue provisioning
-  read -p "$(echo -e $Yellow"Do you want to provision this machine with the above details? This will store credentials on this machine. The token will be consumed and no longer be usable. Type 'yes' if you want to provision: "$Normal)" reply
+  read -r -p "$(echo -e "${Yellow}Do you want to provision this machine with the above details? This will store credentials on this machine. The token will be consumed and no longer be usable. Type 'yes' if you want to provision: ${Normal}")" reply
 
-  if [ $reply != "yes" ]; then
+  if [ "$reply" != "yes" ]; then
       echo "Provisioning cancelled."
       exit 1
   fi
@@ -184,9 +191,23 @@ defaults write com.vori.VoriPOS provisioned_litestreamRegion -string "$litestrea
 defaults write com.vori.VoriPOS provisioned_litestreamBucket -string "$litestreamBucket"
 defaults write com.vori.VoriPOS provisioned_litestreamPath -string "$litestreamPath"
 
-# Initial domain database download when not reprovisioning
-if [ "$reprovision" = false ] ; then
-  echo "Downloading initial domain database..."
+# Download the domain database during the initial provisioning
+if [ $downloadDomainDb = true ] ; then
+  if [[ -z $accessToken ]]; then
+    echo "Retrieving access token..."
+    response=$(curl -X POST \
+      "$oidcTokenUrl" \
+      -H "Authorization: Basic $(echo -n "$oidcClientID:$oidcClientSecret" | base64)" \
+      -H "Content-Type: application/x-www-form-urlencoded" \
+      -d "grant_type=client_credentials&scope=api")
+    content=$(sed '$ d' <<< "$response")
+    accessToken=$( jq -r  '.access_token | select( . != null )' <<< "${content}" )
+    curlArgs=('-H' "Authorization: Bearer $accessToken")
+  else
+    echo "Using existing access token"
+  fi
+
+  echo "Downloading domain database..."
   response=$(curl --silent -w "\n%{http_code}" -L -X GET "$VORI_API_ROOT/pos/domain-data" -H "Content-Type: application/json" -H "X-Vori-Voripos-Provision-Version: $VORIPOS_PROVISION_VERSION" "${curlArgs[@]}")
 
   # Parse the response
@@ -194,16 +215,18 @@ if [ "$reprovision" = false ] ; then
   downloadUrl=$( jq -r  '.download_url | select( . != null )' <<< "${content}" )
 
   # Create folder and parent directories if does not exist
-  mkdir -p $DOMAIN_FILE_PATH
+  mkdir -p "$DOMAIN_FILE_PATH"
 
   # Download domain database to application support
-  curl -o $DOMAIN_FILE_PATH/1-Domain.sqlite3 $downloadUrl
+  dbPath="$DOMAIN_FILE_PATH/$(date +%s)-Domain.sqlite3"
+  curl --silent -o "$dbPath" "$downloadUrl"
+  echo -e "${Green}Successfully downloaded domain database to: $dbPath${Normal}"
 fi
 
 echo "Starting background services..."
 brew services restart voripos-otel-collector
 brew services restart voripos-txn-sync
 echo
-echo "Sync services started. You may need to wait up to five minutes for the initial domain data sync if this is a new installation. See the LiteFS container logs in Docker Desktop for status."
+echo "Sync services started."
 echo
-echo -e $Green"VoriPOS provisioning was successful! Restart the app (if it's running) to reload the latest configuration."$Normal
+echo -e "${Green}VoriPOS provisioning was successful! Restart the app (if it's running) to reload the latest configuration.${Normal}"
