@@ -4,7 +4,7 @@ set -e
 set +v
 set +x
 
-VORIPOS_PROVISION_VERSION=0.11.1
+VORIPOS_PROVISION_VERSION=0.12.0
 VORI_API_ROOT="${VORI_API_ROOT:-https://api.vori.com/v1}"
 DOMAIN_FILE_PATH="${HOME}/Library/Containers/com.vori.VoriPOS/Data/Library/Application Support/Domain"
 
@@ -157,6 +157,10 @@ otlpHostname=$( jq -r  '.otlp.hostname | select( . != null )' <<< "${content}" )
 otlpPort=$( jq -r  '.otlp.port | select( . != null )' <<< "${content}" )
 
 echo "Storing credentials..."
+
+mkdir -p "$HOME/voripos"
+credentialsPath="$HOME/voripos/.credentials.json"
+jq -r '.' <<< "$content" > "$credentialsPath"
 
 defaults write com.vori.VoriPOS provisioned_voriApiUrl -string "$voriApiUrl"
 
