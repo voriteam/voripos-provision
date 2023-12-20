@@ -4,7 +4,7 @@ set -e
 set +v
 set +x
 
-VORIPOS_PROVISION_VERSION=0.12.0
+VORIPOS_PROVISION_VERSION=0.13.0
 VORI_API_ROOT="${VORI_API_ROOT:-https://api.vori.com/v1}"
 DOMAIN_FILE_PATH="${HOME}/Library/Containers/com.vori.VoriPOS/Data/Library/Application Support/Domain"
 
@@ -13,6 +13,8 @@ Italic=$(tput sitm)
 Red=$(tput setaf 1)
 Green=$(tput setaf 2)
 Yellow=$(tput setaf 3)
+
+deviceSerialNumber=$(ioreg -c IOPlatformExpertDevice -d 2 | awk -F\" '/IOPlatformSerialNumber/{print $(NF-1)}')
 
 downloadDomainDb=false
 reprovision=false
@@ -48,7 +50,7 @@ if [ "$reprovision" = true ] ; then
   oidcClientSecret=$(defaults read com.vori.VoriPOS provisioned_oidcClientSecret)
   oidcTokenUrl=$(defaults read com.vori.VoriPOS provisioned_oidcTokenUrl)
 
-  response=$(curl --silent -w "\n%{http_code}" -L -X POST "$oidcTokenUrl" -u "$oidcClientID:$oidcClientSecret" -d "grant_type=client_credentials&scope=api" -H "X-Vori-Voripos-Provision-Version: $VORIPOS_PROVISION_VERSION")
+  response=$(curl --silent -w "\n%{http_code}" -L -X POST "$oidcTokenUrl" -u "$oidcClientID:$oidcClientSecret" -d "grant_type=client_credentials&scope=api" -H "X-Vori-Voripos-Provision-Version: $VORIPOS_PROVISION_VERSION" -H "X-Vori-Device-Serial-Number: $deviceSerialNumber")
   statusCode=$(tail -n1 <<< "$response")
   content=$(sed '$ d' <<< "$response")
   accessToken=$( jq -r  '.access_token | select( . != null )' <<< "${content}" )
@@ -89,7 +91,7 @@ fi
 
 # Check if token is valid
 echo "Validating token..."
-response=$(curl --silent -w "\n%{http_code}" -L -X POST "$VORI_API_ROOT/lane-provisioning-tokens/metadata" -H "Content-Type: application/json" -H "X-Vori-Voripos-Provision-Version: $VORIPOS_PROVISION_VERSION" "${curlArgs[@]}")
+response=$(curl --silent -w "\n%{http_code}" -L -X POST "$VORI_API_ROOT/lane-provisioning-tokens/metadata" -H "Content-Type: application/json" -H "X-Vori-Voripos-Provision-Version: $VORIPOS_PROVISION_VERSION" -H "X-Vori-Device-Serial-Number: $deviceSerialNumber" "${curlArgs[@]}")
 
 # Parse the response
 statusCode=$(tail -n1 <<< "$response")  # Get the status code from the last line
@@ -129,7 +131,7 @@ if [ "$silent" != true ] ; then
 fi
 
 echo "Retrieving credentials from Vori..."
-response=$(curl --silent -w "\n%{http_code}" -L -X POST "$VORI_API_ROOT/lane-provisioning-tokens/exchange" -H "Content-Type: application/json" -H "X-Vori-Voripos-Provision-Version: $VORIPOS_PROVISION_VERSION" "${curlArgs[@]}")
+response=$(curl --silent -w "\n%{http_code}" -L -X POST "$VORI_API_ROOT/lane-provisioning-tokens/exchange" -H "Content-Type: application/json" -H "X-Vori-Voripos-Provision-Version: $VORIPOS_PROVISION_VERSION" -H "X-Vori-Device-Serial-Number: $deviceSerialNumber" "${curlArgs[@]}")
 
 # Parse the response
 statusCode=$(tail -n1 <<< "$response")  # Get the status code from the last line
@@ -200,7 +202,7 @@ if [ $downloadDomainDb = true ] ; then
   if [[ -z $accessToken ]]; then
     echo "Retrieving access token..."
     # TODO De-duplicate with call above for re-provisioning
-    response=$(curl --silent -w "\n%{http_code}" -L -X POST "$oidcTokenUrl" -u "$oidcClientID:$oidcClientSecret" -d "grant_type=client_credentials&scope=api" -H "X-Vori-Voripos-Provision-Version: $VORIPOS_PROVISION_VERSION")
+    response=$(curl --silent -w "\n%{http_code}" -L -X POST "$oidcTokenUrl" -u "$oidcClientID:$oidcClientSecret" -d "grant_type=client_credentials&scope=api" -H "X-Vori-Voripos-Provision-Version: $VORIPOS_PROVISION_VERSION" -H "X-Vori-Device-Serial-Number: $deviceSerialNumber")
     statusCode=$(tail -n1 <<< "$response")
     content=$(sed '$ d' <<< "$response")
     accessToken=$( jq -r  '.access_token | select( . != null )' <<< "${content}" )
@@ -210,7 +212,7 @@ if [ $downloadDomainDb = true ] ; then
   fi
 
   echo "Downloading domain database..."
-  response=$(curl --silent -w "\n%{http_code}" -L -X GET "$VORI_API_ROOT/pos/domain-data" -H "Content-Type: application/json" -H "X-Vori-Voripos-Provision-Version: $VORIPOS_PROVISION_VERSION" "${curlArgs[@]}")
+  response=$(curl --silent -w "\n%{http_code}" -L -X GET "$VORI_API_ROOT/pos/domain-data" -H "Content-Type: application/json" -H "X-Vori-Voripos-Provision-Version: $VORIPOS_PROVISION_VERSION" -H "X-Vori-Device-Serial-Number: $deviceSerialNumber" "${curlArgs[@]}")
 
   # Parse the response
   content=$(sed '$ d' <<< "$response")
