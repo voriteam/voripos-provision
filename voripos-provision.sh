@@ -6,7 +6,7 @@ set +x
 
 VORIPOS_PROVISION_VERSION=0.14.0
 VORI_API_ROOT="${VORI_API_ROOT:-https://api.vori.com/v1}"
-DOMAIN_FILE_PATH="${HOME}/Library/Containers/com.vori.VoriPOS/Data/Library/Application Support/Domain"
+DOMAIN_FILE_PATH="${HOME}/Library/Application Support/VoriPOS/Domain"
 
 Normal=$(tput sgr0)
 Italic=$(tput sitm)
