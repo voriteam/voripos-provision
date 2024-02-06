@@ -4,7 +4,7 @@ set -e
 set +v
 set +x
 
-VORIPOS_PROVISION_VERSION=0.14.0
+VORIPOS_PROVISION_VERSION=0.15.0
 VORI_API_ROOT="${VORI_API_ROOT:-https://api.vori.com/v1}"
 DOMAIN_FILE_PATH="${HOME}/Library/Application Support/VoriPOS/Domain"
 
